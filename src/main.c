@@ -19,15 +19,15 @@ Window *my_window;
 // my layers
 Layer *innerRingLayer;
 #define INNERRING_STROKE 10
-#define INNERRING_COLOR GColorBrightGreen
+#define INNERRING_COLOR GColorElectricBlue
   
 Layer *middleRingLayer;
 #define MIDDLERING_STROKE 10
-#define MIDDLERING_COLOR GColorFolly
+#define MIDDLERING_COLOR GColorBrightGreen
   
 Layer *outerRingLayer;
 #define OUTERRING_STROKE 10
-#define OUTERRING_COLOR GColorElectricBlue 
+#define OUTERRING_COLOR  GColorFolly
   
 Layer *cutoutLayer;
 #define CUTOUT_SIZE 80
@@ -43,6 +43,7 @@ int outerPct = 32;
 static AppSync s_sync;
 static uint8_t s_sync_buffer[32];
 #define KEY_COUNT 5
+  
 
 /*\
 |*| DrawArc function thanks to Cameron MacFarland (http://forums.getpebble.com/profile/12561/Cameron%20MacFarland)
@@ -233,13 +234,13 @@ void main_window_load(Window *window) {
   layer_add_child(window_layer, innerRingLayer);
   
   // times 2 because inner ring is 20 wide
-  int middleSize = INNERRING_STROKE*2 + CUTOUT_SIZE + MIDDLERING_STROKE;
+  int middleSize = INNERRING_STROKE*2 + CUTOUT_SIZE + MIDDLERING_STROKE+3;
   middleRingLayer = layer_create((GRect((bounds.size.w-middleSize)/2, (bounds.size.w-middleSize)/2+10, middleSize, middleSize)));
   layer_set_update_proc(middleRingLayer, middleRing_update_callback);
   layer_insert_below_sibling(middleRingLayer, innerRingLayer);
   
   // outer
-  int outerSize = INNERRING_STROKE*2 + CUTOUT_SIZE + MIDDLERING_STROKE*2 + OUTERRING_STROKE;
+  int outerSize = INNERRING_STROKE*2 + CUTOUT_SIZE + MIDDLERING_STROKE*2 + OUTERRING_STROKE + 8;
   outerRingLayer = layer_create((GRect((bounds.size.w-outerSize)/2, (bounds.size.w-outerSize)/2+10, outerSize, outerSize)));
   layer_set_update_proc(outerRingLayer, outerRing_update_callback);
   layer_insert_below_sibling(outerRingLayer, middleRingLayer);
@@ -262,6 +263,7 @@ void handle_init(void) {
   });
   
   window_stack_push(my_window, true);
+  
   
   // start up app sync
   app_message_open(app_message_inbox_size_maximum(), app_message_outbox_size_maximum());

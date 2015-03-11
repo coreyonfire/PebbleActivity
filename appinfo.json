@@ -3,17 +3,21 @@
     "capabilities": [
         ""
     ],
-    "companyName": "cbesmer@me.com",
-    "longName": "Activity",
+    "companyName": "coreyonfire",
+    "longName": "PebbleActivity",
     "projectType": "native",
     "resources": {
         "media": []
     },
     "sdkVersion": "3",
     "shortName": "Activity",
+    "targetPlatforms": [
+        "aplite",
+        "basalt"
+    ],
     "uuid": "6cf07e00-e3bf-4901-9757-9beebe607138",
     "versionCode": 1,
-    "versionLabel": "1.0",
+    "versionLabel": "0.1",
     "watchapp": {
         "watchface": false
     }
