@@ -1,4 +1,5 @@
 #include <pebble.h>
+#include "arcDraw.h"
 
 /*
  *  the stroke sizes control how thick the ring is
@@ -8,10 +9,6 @@
  *  to get colors go here http://developer.getpebble.com/tools/color-picker/
  */
   
-// some geometry constants
-static int angle_90 = TRIG_MAX_ANGLE / 4;
-static int angle_180 = TRIG_MAX_ANGLE / 2;
-static int angle_270 = 3 * TRIG_MAX_ANGLE / 4;
   
 // my window
 Window *my_window;
@@ -20,14 +17,17 @@ Window *my_window;
 Layer *innerRingLayer;
 #define INNERRING_STROKE 10
 #define INNERRING_COLOR GColorElectricBlue
+#define INNERRING_UNSELECTED_COLOR GColorTiffanyBlue
   
 Layer *middleRingLayer;
 #define MIDDLERING_STROKE 10
 #define MIDDLERING_COLOR GColorBrightGreen
+#define MIDDLERING_UNSELECTED_COLOR GColorIslamicGreen
   
 Layer *outerRingLayer;
 #define OUTERRING_STROKE 10
 #define OUTERRING_COLOR  GColorFolly
+#define OUTERRING_UNSELECTED_COLOR GColorDarkCandyAppleRed
   
 Layer *cutoutLayer;
 #define CUTOUT_SIZE 80
@@ -36,7 +36,7 @@ TextLayer *text_layer;
 #define TEXT_COLOR GColorWhite
   
 // selected ring index
-int selectedRing;
+static int selectedRing = 3;
 
 // app sync object
 static AppSync s_sync;
@@ -60,9 +60,6 @@ int outerPct = 0;
 int innerPctMax = 50;
 int middlePctMax = 66;
 int outerPctMax = 32;
-  
-// draw arc prototype
-static void graphics_draw_arc(GContext *ctx, GPoint center, int radius, int thickness, int start_angle, int end_angle, GColor c);
 
 static void sync_changed_handler(const uint32_t key, const Tuple *new_tuple, const Tuple *old_tuple, void *context) {
   // Update UI here
@@ -106,7 +103,7 @@ void innerRing_update_callback(Layer *layer, GContext *ctx) {
   // -1 to prevent the little bit of clipping
   const int16_t half_h = (bounds.size.h-1) / 2;
   #ifdef PBL_COLOR
-    graphics_draw_arc(ctx, GPoint(half_h, half_h), half_h, INNERRING_STROKE, angle_270, angle_270 + angle, INNERRING_COLOR);
+    graphics_draw_arc(ctx, GPoint(half_h, half_h), half_h, INNERRING_STROKE, angle_270, angle_270 + angle, (selectedRing == 2 || selectedRing == 3) ? INNERRING_COLOR : INNERRING_UNSELECTED_COLOR);
   #else
     graphics_draw_arc(ctx, GPoint(half_h, half_h), half_h, INNERRING_STROKE, angle_270, angle_270 + angle, GColorWhite);
   #endif
@@ -119,7 +116,7 @@ void middleRing_update_callback(Layer *layer, GContext *ctx) {
   // -1 to prevent the little bit of clipping
   const int16_t half_h = (bounds.size.h-1) / 2;
   #ifdef PBL_COLOR
-    graphics_draw_arc(ctx, GPoint(half_h, half_h), half_h, MIDDLERING_STROKE, angle_270, angle_270 + angle, MIDDLERING_COLOR);
+    graphics_draw_arc(ctx, GPoint(half_h, half_h), half_h, MIDDLERING_STROKE, angle_270, angle_270 + angle, (selectedRing == 1 || selectedRing == 3) ? MIDDLERING_COLOR : MIDDLERING_UNSELECTED_COLOR);
   #else
     graphics_draw_arc(ctx, GPoint(half_h, half_h), half_h, MIDDLERING_STROKE, angle_270, angle_270 + angle, GColorWhite);
   #endif
@@ -132,13 +129,13 @@ void outerRing_update_callback(Layer *layer, GContext *ctx) {
   // -1 to prevent the little bit of clipping
   const int16_t half_h = (bounds.size.h-1) / 2;
   #ifdef PBL_COLOR
-    graphics_draw_arc(ctx, GPoint(half_h, half_h), half_h, OUTERRING_STROKE, angle_270, angle_270 + angle, OUTERRING_COLOR);
+    graphics_draw_arc(ctx, GPoint(half_h, half_h), half_h, OUTERRING_STROKE, angle_270, angle_270 + angle, (selectedRing == 0 || selectedRing == 3) ? OUTERRING_COLOR : OUTERRING_UNSELECTED_COLOR);
   #else
     graphics_draw_arc(ctx, GPoint(half_h, half_h), half_h, OUTERRING_STROKE, angle_270, angle_270 + angle, GColorWhite);
   #endif
 }
 
-void update_text() {
+void update_selection() {
   char *textChars;
   switch (selectedRing) {
     case 0: textChars = "Steps"; break;
@@ -149,9 +146,12 @@ void update_text() {
   #ifdef PBL_COLOR
     GColor textColor;
     switch (selectedRing) {
-      case 0: textColor = OUTERRING_COLOR; break;
-      case 1: textColor = MIDDLERING_COLOR; break;
-      case 2: textColor = INNERRING_COLOR; break;
+      case 0: textColor = OUTERRING_COLOR; 
+              break;
+      case 1: textColor = MIDDLERING_COLOR; 
+              break;
+      case 2: textColor = INNERRING_COLOR; 
+              break;
       default : textColor = TEXT_COLOR;
     };
     text_layer_set_text_color(text_layer, textColor);
@@ -159,22 +159,21 @@ void update_text() {
   text_layer_set_text(text_layer, textChars);
 }
 
+// the way this works: clicking up and down cycles rings. clicking center un-selects.
 static void up_click_handler(ClickRecognizerRef recognizer, void *context) {
-  selectedRing = (selectedRing - 1) % 4 >= 0 ? (selectedRing - 1) % 4 : 3;
-  update_text();
+  selectedRing = (selectedRing - 1) % 3 >= 0 ? (selectedRing - 1) % 3 : 2;
+  update_selection();
 }
 
 static void select_click_handler(ClickRecognizerRef recognizer, void *context) {
-  // doesn't do anything atm
-  #ifdef PBL_COLOR
-    text_layer_set_text_color(text_layer, TEXT_COLOR);
-  #endif
-  text_layer_set_text(text_layer, "Activity");
+  selectedRing = 3;
+  update_selection();
 }
 
 static void down_click_handler(ClickRecognizerRef recognizer, void *context) {
-  selectedRing = (selectedRing + 1) % 4;
-  update_text();
+  // to make it go to outer ring instead of middle ring after setting selectedRing to 3
+  selectedRing = ((selectedRing < 3 ? selectedRing : 2) + 1) % 3;
+  update_selection();
 }
 
 static void click_config_provider(void *context) {
@@ -237,8 +236,7 @@ void handle_init(void) {
   
   window_stack_push(my_window, true);
   
-  //set up selected ring
-  selectedRing = 0;
+  //set up ring select click actions
   window_set_click_config_provider(my_window, click_config_provider);
   
   // kick off animations
@@ -292,119 +290,3 @@ int main(void) {
   handle_deinit();
 }
 
-/*\
-|*| DrawArc function thanks to Cameron MacFarland (http://forums.getpebble.com/profile/12561/Cameron%20MacFarland)
-\*/
-static void graphics_draw_arc(GContext *ctx, GPoint center, int radius, int thickness, int start_angle, int end_angle, GColor c) {
-	int32_t xmin = 65535000, xmax = -65535000, ymin = 65535000, ymax = -65535000;
-	int32_t cosStart, sinStart, cosEnd, sinEnd;
-	int32_t r, t;
-	
-	while (start_angle < 0) start_angle += TRIG_MAX_ANGLE;
-	while (end_angle < 0) end_angle += TRIG_MAX_ANGLE;
-
-	start_angle %= TRIG_MAX_ANGLE;
-	end_angle %= TRIG_MAX_ANGLE;
-	
-	if (end_angle == 0) end_angle = TRIG_MAX_ANGLE;
-	
-	if (start_angle > end_angle) {
-		graphics_draw_arc(ctx, center, radius, thickness, start_angle, TRIG_MAX_ANGLE, c);
-		graphics_draw_arc(ctx, center, radius, thickness, 0, end_angle, c);
-	} else {
-		// Calculate bounding box for the arc to be drawn
-		cosStart = cos_lookup(start_angle);
-		sinStart = sin_lookup(start_angle);
-		cosEnd = cos_lookup(end_angle);
-		sinEnd = sin_lookup(end_angle);
-		
-		r = radius;
-		// Point 1: radius & start_angle
-		t = r * cosStart;
-		if (t < xmin) xmin = t;
-		if (t > xmax) xmax = t;
-		t = r * sinStart;
-		if (t < ymin) ymin = t;
-		if (t > ymax) ymax = t;
-
-		// Point 2: radius & end_angle
-		t = r * cosEnd;
-		if (t < xmin) xmin = t;
-		if (t > xmax) xmax = t;
-		t = r * sinEnd;
-		if (t < ymin) ymin = t;
-		if (t > ymax) ymax = t;
-		
-		r = radius - thickness;
-		// Point 3: radius-thickness & start_angle
-		t = r * cosStart;
-		if (t < xmin) xmin = t;
-		if (t > xmax) xmax = t;
-		t = r * sinStart;
-		if (t < ymin) ymin = t;
-		if (t > ymax) ymax = t;
-
-		// Point 4: radius-thickness & end_angle
-		t = r * cosEnd;
-		if (t < xmin) xmin = t;
-		if (t > xmax) xmax = t;
-		t = r * sinEnd;
-		if (t < ymin) ymin = t;
-		if (t > ymax) ymax = t;
-		
-		// Normalization
-		xmin /= TRIG_MAX_RATIO;
-		xmax /= TRIG_MAX_RATIO;
-		ymin /= TRIG_MAX_RATIO;
-		ymax /= TRIG_MAX_RATIO;
-				
-		// Corrections if arc crosses X or Y axis
-		if ((start_angle < angle_90) && (end_angle > angle_90)) {
-			ymax = radius;
-		}
-		
-		if ((start_angle < angle_180) && (end_angle > angle_180)) {
-			xmin = -radius;
-		}
-		
-		if ((start_angle < angle_270) && (end_angle > angle_270)) {
-			ymin = -radius;
-		}
-		
-		// Slopes for the two sides of the arc
-		float sslope = (float)cosStart/ (float)sinStart;
-		float eslope = (float)cosEnd / (float)sinEnd;
-	 
-		if (end_angle == TRIG_MAX_ANGLE) eslope = -1000000;
-	 
-		int ir2 = (radius - thickness) * (radius - thickness);
-		int or2 = radius * radius;
-	 
-		graphics_context_set_stroke_color(ctx, c);
-
-		for (int x = xmin; x <= xmax; x++) {
-			for (int y = ymin; y <= ymax; y++)
-			{
-				int x2 = x * x;
-				int y2 = y * y;
-	 
-				if (
-					(x2 + y2 < or2 && x2 + y2 >= ir2) && (
-						(y > 0 && start_angle < angle_180 && x <= y * sslope) ||
-						(y < 0 && start_angle > angle_180 && x >= y * sslope) ||
-						(y < 0 && start_angle <= angle_180) ||
-						(y == 0 && start_angle <= angle_180 && x < 0) ||
-						(y == 0 && start_angle == 0 && x > 0)
-					) && (
-						(y > 0 && end_angle < angle_180 && x >= y * eslope) ||
-						(y < 0 && end_angle > angle_180 && x <= y * eslope) ||
-						(y > 0 && end_angle >= angle_180) ||
-						(y == 0 && end_angle >= angle_180 && x < 0) ||
-						(y == 0 && start_angle == 0 && x > 0)
-					)
-				)
-				graphics_draw_pixel(ctx, GPoint(center.x+x, center.y+y));
-			}
-		}
-	}
-}
