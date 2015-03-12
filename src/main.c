@@ -31,8 +31,12 @@ Layer *outerRingLayer;
   
 Layer *cutoutLayer;
 #define CUTOUT_SIZE 80
+  
 TextLayer *text_layer;
-#define TEXT_COLOR GColorElectricBlue
+#define TEXT_COLOR GColorWhite
+  
+// selected ring index
+int selectedRing;
 
 // app sync object
 static AppSync s_sync;
@@ -134,6 +138,52 @@ void outerRing_update_callback(Layer *layer, GContext *ctx) {
   #endif
 }
 
+void update_text() {
+  char *textChars;
+  switch (selectedRing) {
+    case 0: textChars = "Steps"; break;
+    case 1: textChars = "Walk/Run"; break;
+    case 2: textChars = "Calories"; break;
+    default : textChars = "Activity";
+  };
+  #ifdef PBL_COLOR
+    GColor textColor;
+    switch (selectedRing) {
+      case 0: textColor = OUTERRING_COLOR; break;
+      case 1: textColor = MIDDLERING_COLOR; break;
+      case 2: textColor = INNERRING_COLOR; break;
+      default : textColor = TEXT_COLOR;
+    };
+    text_layer_set_text_color(text_layer, textColor);
+  #endif
+  text_layer_set_text(text_layer, textChars);
+}
+
+static void up_click_handler(ClickRecognizerRef recognizer, void *context) {
+  selectedRing = (selectedRing - 1) % 4 >= 0 ? (selectedRing - 1) % 4 : 3;
+  update_text();
+}
+
+static void select_click_handler(ClickRecognizerRef recognizer, void *context) {
+  // doesn't do anything atm
+  #ifdef PBL_COLOR
+    text_layer_set_text_color(text_layer, TEXT_COLOR);
+  #endif
+  text_layer_set_text(text_layer, "Activity");
+}
+
+static void down_click_handler(ClickRecognizerRef recognizer, void *context) {
+  selectedRing = (selectedRing + 1) % 4;
+  update_text();
+}
+
+static void click_config_provider(void *context) {
+  // Register the ClickHandlers
+  window_single_click_subscribe(BUTTON_ID_UP, up_click_handler);
+  window_single_click_subscribe(BUTTON_ID_SELECT, select_click_handler);
+  window_single_click_subscribe(BUTTON_ID_DOWN, down_click_handler);
+}
+
 void main_window_load(Window *window) {
   Layer *window_layer = window_get_root_layer(window);
   GRect bounds = layer_get_frame(window_layer);
@@ -186,6 +236,10 @@ void handle_init(void) {
   });
   
   window_stack_push(my_window, true);
+  
+  //set up selected ring
+  selectedRing = 0;
+  window_set_click_config_provider(my_window, click_config_provider);
   
   // kick off animations
   // inner
