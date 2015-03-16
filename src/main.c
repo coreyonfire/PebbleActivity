@@ -7,6 +7,7 @@
  *  the rings' diameter is controlled by how big the black hole is
  *
  *  to get colors go here http://developer.getpebble.com/tools/color-picker/
+ *  there is already a stand up app, called Stand Up
  */
   
   
@@ -57,6 +58,7 @@ AnimationImplementation outerAnimImpl;
 int innerPct = 0;
 int middlePct = 0;
 int outerPct = 0;
+// these three will represent the current number of actions taken
 int innerPctMax = 50;
 int middlePctMax = 66;
 int outerPctMax = 32;
