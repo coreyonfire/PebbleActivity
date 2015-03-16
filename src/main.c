@@ -35,6 +35,8 @@ Layer *cutoutLayer;
   
 TextLayer *text_layer;
 #define TEXT_COLOR GColorWhite
+TextLayer *center_text;
+#define CENTER_COLOR GColorWhite
   
 // selected ring index
 static int selectedRing = 3;
@@ -59,9 +61,9 @@ int innerPct = 0;
 int middlePct = 0;
 int outerPct = 0;
 // these three will represent the current number of actions taken
-int innerPctMax = 50;
-int middlePctMax = 66;
-int outerPctMax = 32;
+int innerPctMax = 55;
+int middlePctMax = 67;
+int outerPctMax = 26;
 
 static void sync_changed_handler(const uint32_t key, const Tuple *new_tuple, const Tuple *old_tuple, void *context) {
   // Update UI here
@@ -115,6 +117,7 @@ void middleRing_update_callback(Layer *layer, GContext *ctx) {
   GRect bounds = layer_get_bounds(layer);
   // turn the percent into an angle
   int angle = middlePct / 100.0 * TRIG_MAX_ANGLE;
+  angle = angle >= 100.0 ? angle - 1 : angle;
   // -1 to prevent the little bit of clipping
   const int16_t half_h = (bounds.size.h-1) / 2;
   #ifdef PBL_COLOR
@@ -128,6 +131,7 @@ void outerRing_update_callback(Layer *layer, GContext *ctx) {
   GRect bounds = layer_get_bounds(layer);
   // turn the percent into an angle
   int angle = outerPct / 100.0 * TRIG_MAX_ANGLE;
+  angle = angle >= 100.0 ? angle - 1 : angle;
   // -1 to prevent the little bit of clipping
   const int16_t half_h = (bounds.size.h-1) / 2;
   #ifdef PBL_COLOR
@@ -139,11 +143,12 @@ void outerRing_update_callback(Layer *layer, GContext *ctx) {
 
 void update_selection() {
   char *textChars;
+  char centerText[50];
   switch (selectedRing) {
-    case 0: textChars = "Steps"; break;
-    case 1: textChars = "Walk/Run"; break;
-    case 2: textChars = "Calories"; break;
-    default : textChars = "Activity";
+    case 0: textChars = "Steps"; snprintf(centerText, 50, "%d/%d", outerPct, outerPctMax); break;
+    case 1: textChars = "Walk/Run"; snprintf(centerText, 50, "%d/%d", middlePct, middlePctMax); break;
+    case 2: textChars = "Calories"; snprintf(centerText, 50, "%d/%d", innerPct, innerPctMax); break;
+    default : textChars = "Activity"; snprintf(centerText, 50, "\n"); 
   };
   #ifdef PBL_COLOR
     GColor textColor;
@@ -157,8 +162,10 @@ void update_selection() {
       default : textColor = TEXT_COLOR;
     };
     text_layer_set_text_color(text_layer, textColor);
+    text_layer_set_text_color(center_text, textColor);
   #endif
   text_layer_set_text(text_layer, textChars);
+  text_layer_set_text(center_text, centerText);
 }
 
 // the way this works: clicking up and down cycles rings. clicking center un-selects.
@@ -189,17 +196,30 @@ void main_window_load(Window *window) {
   Layer *window_layer = window_get_root_layer(window);
   GRect bounds = layer_get_frame(window_layer);
   
+  
+  
   text_layer = text_layer_create(GRect(0, 0, 144, 20));
+  GSize center_size = graphics_text_layout_get_content_size("10,000\n/10,000", fonts_get_system_font(FONT_KEY_GOTHIC_14), GRect(0,0, CUTOUT_SIZE/2, CUTOUT_SIZE/2), GTextOverflowModeWordWrap, GTextAlignmentCenter);
+  center_text = text_layer_create(GRect((bounds.size.w-(center_size.w+5))/2, (bounds.size.w-(center_size.h+5))/2+10, center_size.w+5, center_size.h+5));
   
   #ifdef PBL_COLOR 
     text_layer_set_text_color(text_layer, TEXT_COLOR);
+    text_layer_set_text_color(center_text, CENTER_COLOR);
   #else
     text_layer_set_text_color(text_layer, GColorWhite);
+    text_layer_set_text_color(text_layer, GColorWhite);
   #endif
-  text_layer_set_background_color(text_layer, GColorBlack);
+  text_layer_set_background_color(text_layer, GColorClear);
+  text_layer_set_background_color(center_text, GColorClear);
+  
+  text_layer_set_text_alignment(center_text, GTextAlignmentCenter);
   
   text_layer_set_text(text_layer, "Activity");
+  text_layer_set_text(center_text, "");
+  
   layer_add_child(window_layer, text_layer_get_layer(text_layer));
+  layer_insert_below_sibling(text_layer_get_layer(center_text), text_layer_get_layer(text_layer));
+  
 
   // create any layers i'll need and insert them
   int innerSize = CUTOUT_SIZE + INNERRING_STROKE;
@@ -223,6 +243,7 @@ void main_window_load(Window *window) {
 void main_window_unload(Window *window) {
   // destroy any layers that the window contains
   text_layer_destroy(text_layer);
+  text_layer_destroy(center_text);
   layer_destroy(innerRingLayer);
   layer_destroy(outerRingLayer);
   layer_destroy(middleRingLayer);
