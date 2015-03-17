@@ -4,13 +4,20 @@
         ""
     ],
     "companyName": "coreyonfire",
-    "longName": "PebbleActivity",
+    "longName": "pebbleActivity",
     "projectType": "native",
     "resources": {
-        "media": []
+        "media": [
+            {
+                "file": "images/icon-bw.png",
+                "menuIcon": true,
+                "name": "app_icon",
+                "type": "png"
+            }
+        ]
     },
     "sdkVersion": "3",
-    "shortName": "Activity",
+    "shortName": "pebbleActivity",
     "targetPlatforms": [
         "aplite",
         "basalt"

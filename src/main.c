@@ -64,6 +64,10 @@ int outerPct = 0;
 int innerPctMax = 55;
 int middlePctMax = 67;
 int outerPctMax = 26;
+// these three are your goals
+int innerGoal = 100;
+int middleGoal = 100;
+int outerGoal = 100;
 
 static void sync_changed_handler(const uint32_t key, const Tuple *new_tuple, const Tuple *old_tuple, void *context) {
   // Update UI here
@@ -145,9 +149,9 @@ void update_selection() {
   char *textChars;
   char centerText[50];
   switch (selectedRing) {
-    case 0: textChars = "Steps"; snprintf(centerText, 50, "%d/%d", outerPct, outerPctMax); break;
-    case 1: textChars = "Walk/Run"; snprintf(centerText, 50, "%d/%d", middlePct, middlePctMax); break;
-    case 2: textChars = "Calories"; snprintf(centerText, 50, "%d/%d", innerPct, innerPctMax); break;
+    case 0: textChars = "Steps"; snprintf(centerText, 50, "%d/%d", outerPct, outerGoal); break;
+    case 1: textChars = "Walk/Run"; snprintf(centerText, 50, "%d/%d", middlePct, middleGoal); break;
+    case 2: textChars = "Floors"; snprintf(centerText, 50, "%d/%d", innerPct, innerGoal); break;
     default : textChars = "Activity"; snprintf(centerText, 50, "\n"); 
   };
   #ifdef PBL_COLOR
