@@ -43,8 +43,12 @@ static int selectedRing = 3;
 
 // app sync object
 static AppSync s_sync;
-static uint8_t s_sync_buffer[32];
-#define KEY_COUNT 5
+static uint8_t s_sync_buffer[100];
+enum DataKey {
+  STEP_COUNT = 0x2,
+  WALK_RUN_COUNT = 0x1,
+  FLOOR_COUNT = 0x0
+};
   
 // animation objects
 #define ANIM_DURATION 1000
@@ -61,43 +65,66 @@ int innerPct = 0;
 int middlePct = 0;
 int outerPct = 0;
 // these three will represent the current number of actions taken
-int innerPctMax = 55;
-int middlePctMax = 67;
-int outerPctMax = 26;
+int innerPctMax = 0;
+int middlePctMax = 0;
+int outerPctMax = 0;
 // these three are your goals
-int innerGoal = 100;
-int middleGoal = 100;
-int outerGoal = 100;
+int innerGoal = 10;
+int middleGoal = 1000;
+int outerGoal = 1000;
+
+void animate_rings();
 
 static void sync_changed_handler(const uint32_t key, const Tuple *new_tuple, const Tuple *old_tuple, void *context) {
   // Update UI here
   APP_LOG(APP_LOG_LEVEL_INFO, "Recieved new information.");
+  
+  switch (key) {
+    case STEP_COUNT:
+      innerPctMax = new_tuple->value->int32;
+      APP_LOG(APP_LOG_LEVEL_INFO, "Setting innerPct to %d", innerPctMax);
+      layer_mark_dirty(innerRingLayer);
+      break;
+    case WALK_RUN_COUNT:
+      middlePctMax = new_tuple->value->int32;
+      APP_LOG(APP_LOG_LEVEL_INFO, "Setting middlePct to %d", middlePctMax);
+      layer_mark_dirty(middleRingLayer);
+      break;
+    case FLOOR_COUNT:
+      outerPctMax = new_tuple->value->int32;
+      APP_LOG(APP_LOG_LEVEL_INFO, "Setting outerPct to %d", outerPctMax);
+      layer_mark_dirty(outerRingLayer);
+      break;
+  }
+  char buf[10];
+  snprintf(buf, 10, "IN: %d", (int)key);
+  text_layer_set_text(center_text, buf);
+  animate_rings();
 }
 
 static void sync_error_handler(DictionaryResult dict_error, AppMessageResult app_message_error, void *context) {
-  // An error occured!
-  APP_LOG(APP_LOG_LEVEL_ERROR, "ERROR OCCURRED IN SYNC.");
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "App Message Sync Error: %d", app_message_error);
 }
 
 
 
 void inner_anim_update(struct Animation *anim, const uint32_t time) {
   uint32_t time_ms = time * 1000 / ANIMATION_NORMALIZED_MAX;
-  innerPct = time_ms*1.0 / ANIM_DURATION  * (innerPctMax);
+  innerPct = ((time_ms*1.0 / ANIM_DURATION  * (innerPctMax*1.0/innerGoal)) > 100 ? 100 :  (time_ms*1.0 / ANIM_DURATION  * (innerPctMax*1.0/innerGoal)));
   //APP_LOG(APP_LOG_LEVEL_INFO, "pct: %d, pctMax: %d, endPct: %d", (int) (time_ms*1.0 / ANIM_DURATION * 100), innerPctMax, innerPct);
   layer_mark_dirty(innerRingLayer);
 }
 
 void middle_anim_update(struct Animation *anim, const uint32_t time) {
   uint32_t time_ms = time * 1000 / ANIMATION_NORMALIZED_MAX;
-  middlePct = time_ms*1.0 / ANIM_DURATION  * (middlePctMax);
+  middlePct = ((time_ms*1.0 / ANIM_DURATION  * (middlePctMax*1.0/middleGoal)) > 100 ? 100 :  (time_ms*1.0 / ANIM_DURATION  * (middlePctMax*1.0/middleGoal)));
   //APP_LOG(APP_LOG_LEVEL_INFO, "pct: %d, pctMax: %d, endPct: %d", (int) (time_ms*1.0 / ANIM_DURATION * 100), innerPctMax, innerPct);
   layer_mark_dirty(middleRingLayer);
 }
 
 void outer_anim_update(struct Animation *anim, const uint32_t time) {
   uint32_t time_ms = time * 1000 / ANIMATION_NORMALIZED_MAX;
-  outerPct = time_ms*1.0 / ANIM_DURATION  * (outerPctMax);
+  outerPct = ((time_ms*1.0 / ANIM_DURATION  * (outerPctMax*1.0/outerGoal)) > 100 ? 100 :  (time_ms*1.0 / ANIM_DURATION  * (outerPctMax*1.0/outerGoal)));
   //APP_LOG(APP_LOG_LEVEL_INFO, "pct: %d, pctMax: %d, endPct: %d", (int) (time_ms*1.0 / ANIM_DURATION * 100), innerPctMax, innerPct);
   layer_mark_dirty(outerRingLayer);
 }
@@ -168,6 +195,7 @@ void update_selection() {
     text_layer_set_text_color(text_layer, textColor);
     text_layer_set_text_color(center_text, textColor);
   #endif
+    
   text_layer_set_text(text_layer, textChars);
   text_layer_set_text(center_text, centerText);
 }
@@ -211,7 +239,7 @@ void main_window_load(Window *window) {
     text_layer_set_text_color(center_text, CENTER_COLOR);
   #else
     text_layer_set_text_color(text_layer, GColorWhite);
-    text_layer_set_text_color(text_layer, GColorWhite);
+    text_layer_set_text_color(center_text, GColorWhite);
   #endif
   text_layer_set_background_color(text_layer, GColorClear);
   text_layer_set_background_color(center_text, GColorClear);
@@ -253,19 +281,7 @@ void main_window_unload(Window *window) {
   layer_destroy(middleRingLayer);
 }
 
-void handle_init(void) {
-  my_window = window_create();
-  window_set_background_color(my_window, GColorBlack);
-  window_set_window_handlers(my_window, (WindowHandlers) {
-    .load = main_window_load,
-    .unload = main_window_unload,
-  });
-  
-  window_stack_push(my_window, true);
-  
-  //set up ring select click actions
-  window_set_click_config_provider(my_window, click_config_provider);
-  
+void animate_rings() {
   // kick off animations
   // inner
   GRect pos = layer_get_frame(innerRingLayer);
@@ -293,13 +309,31 @@ void handle_init(void) {
   outerAnimImpl.update = *outer_anim_update;
   animation_set_implementation(property_animation_get_animation(outerRingAnimation), &outerAnimImpl);
   animation_schedule((Animation*)outerRingAnimation);
+}
+
+void handle_init(void) {
+  my_window = window_create();
+  window_set_background_color(my_window, GColorBlack);
+  window_set_window_handlers(my_window, (WindowHandlers) {
+    .load = main_window_load,
+    .unload = main_window_unload,
+  });
+  
+  window_stack_push(my_window, true);
+  
+  //set up ring select click actions
+  window_set_click_config_provider(my_window, click_config_provider);
+  
+  animate_rings();
   
   // start up app sync
   app_message_open(app_message_inbox_size_maximum(), app_message_outbox_size_maximum());
 
   // Setup initial values
   Tuplet initial_values[] = {
-    TupletInteger(KEY_COUNT, 0),
+    TupletInteger(STEP_COUNT, 0),
+    TupletInteger(WALK_RUN_COUNT, 0),
+    TupletInteger(FLOOR_COUNT, 0),
   };
 
   // Begin using AppSync
